@@ -243,21 +243,25 @@ namespace vsgconv
         out << std::endl;
     };
 
-    void printMatchedFeatures(std::ostream& out, const std::string& rw_name, vsg::ref_ptr<vsg::ReaderWriter> rw, int indentation = 0)
+    bool printMatchedFeatures(std::ostream& out, const std::string& rw_name, vsg::ref_ptr<vsg::ReaderWriter> rw, int indentation = 0)
     {
+        bool featureFound = false;
+
         if (rw_name == rw->className())
         {
             printFeatures(out, rw, indentation);
-            return;
+            featureFound = true;
         }
-
-        if (auto cws = rw.cast<vsg::CompositeReaderWriter>(); cws)
+        else if (auto cws = rw.cast<vsg::CompositeReaderWriter>(); cws)
         {
             for (auto& child : cws->readerWriters)
             {
-                printMatchedFeatures(out, rw_name, child, indentation);
+                bool found = printMatchedFeatures(out, rw_name, child, indentation);
+                featureFound = featureFound || found;
             }
         }
+
+        return featureFound;
     };
 
 } // namespace vsgconv
@@ -306,22 +310,33 @@ int main(int argc, char** argv)
     std::string rw_name;
     if (arguments.read("--features", rw_name) || arguments.read("--features"))
     {
+        int returnvalue = 0;
+
         if (rw_name.empty())
         {
-            for (auto rw : options->readerWriters)
+            for (auto &rw : options->readerWriters)
             {
                 vsgconv::printFeatures(std::cout, rw);
             }
         }
         else
         {
-            for (auto rw : options->readerWriters)
+            bool featureFound = false;
+
+            for (auto &rw : options->readerWriters)
             {
-                vsgconv::printMatchedFeatures(std::cout, rw_name, rw);
+                bool found = vsgconv::printMatchedFeatures(std::cout, rw_name, rw);
+                featureFound = featureFound || found;
+            }
+
+            if (featureFound == false)
+            {
+                std::cout << "Specified ReaderWriter '" << rw_name << "' not found." << std::endl;
+                returnvalue = 1;
             }
         }
 
-        return 0;
+        return returnvalue;
     }
 
     auto levels = arguments.value(0, "-l");
