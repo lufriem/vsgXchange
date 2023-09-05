@@ -609,7 +609,6 @@ void SceneConverter::convert(const aiMesh* mesh, vsg::ref_ptr<vsg::Node>& node)
     auto config = vsg::GraphicsPipelineConfigurator::create(material->shaderSet);
     config->descriptorConfigurator = material;
 
-    config->inputAssemblyState->topology = topology;
     auto indices = createIndices(mesh, numIndicesPerFace, numIndices);
 
     vsg::DataList vertexArrays;
@@ -665,18 +664,21 @@ void SceneConverter::convert(const aiMesh* mesh, vsg::ref_ptr<vsg::Node>& node)
     vid->instanceCount = 1;
     if (!name.empty()) vid->setValue("name", name);
 
-    if (material->blending)
+    // set the GraphicsPipelineStates to the required values.
+    struct SetPipelineStates : public vsg::Visitor
     {
-        config->colorBlendState->attachments = vsg::ColorBlendState::ColorBlendAttachments{
-            {true, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_SRC_ALPHA, VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, VK_BLEND_OP_SUBTRACT, VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT}};
+        VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        bool blending = false;
+        bool two_sided = false;
 
-        if (sharedObjects) sharedObjects->share(config->colorBlendState);
-    }
+        SetPipelineStates(VkPrimitiveTopology in_topology, bool in_blending, bool in_two_sided) : topology(in_topology), blending(in_blending), two_sided(in_two_sided) {}
 
-    if (material->two_sided)
-    {
-        config->rasterizationState->cullMode = VK_CULL_MODE_NONE;
-    }
+        void apply(vsg::Object& object) { object.traverse(*this); }
+        void apply(vsg::RasterizationState& rs) { if (two_sided) rs.cullMode = VK_CULL_MODE_NONE; }
+        void apply(vsg::InputAssemblyState& ias) { ias.topology = topology; }
+        void apply(vsg::ColorBlendState& cbs) { cbs.configureAttachments(blending); }
+    } sps(topology, material->blending, material->two_sided);
+    config->accept(sps);
 
     if (sharedObjects)
         sharedObjects->share(config, [](auto gpc) { gpc->init(); });
@@ -794,7 +796,7 @@ vsg::ref_ptr<vsg::Node> SceneConverter::visit(const aiNode* node, int depth)
         children.push_back(light_itr->second);
     }
 
-    // visit the meshes
+    // assign the meshes
     for (unsigned int i = 0; i < node->mNumMeshes; ++i)
     {
         auto mesh_index = node->mMeshes[i];
@@ -869,6 +871,21 @@ void SceneConverter::processLights()
 {
     if (scene->mNumLights > 0)
     {
+        auto setColorAndIntensity = [](const aiLight& light, vsg::Light& vsg_light) -> void
+        {
+            vsg_light.color = convert(light.mColorDiffuse);
+            float maxValue = std::max(std::max(vsg_light.color.r, vsg_light.color.g),  vsg_light.color.b);
+            if (maxValue > 0.0)
+            {
+                vsg_light.color /= maxValue;
+                vsg_light.intensity = maxValue;
+            }
+            else
+            {
+                vsg_light.intensity = 0.0;
+            }
+        };
+
         for (unsigned int li = 0; li < scene->mNumLights; ++li)
         {
             auto* light = scene->mLights[li];
@@ -876,32 +893,32 @@ void SceneConverter::processLights()
             {
             case (aiLightSource_UNDEFINED): {
                 auto vsg_light = vsg::Light::create();
+                setColorAndIntensity(*light, *vsg_light);
                 vsg_light->name = light->mName.C_Str();
-                vsg_light->color = convert(light->mColorDiffuse);
                 vsg_light->setValue("light_type", "UNDEFINED");
                 lightMap[vsg_light->name] = vsg_light;
                 break;
             }
             case (aiLightSource_DIRECTIONAL): {
                 auto vsg_light = vsg::DirectionalLight::create();
+                setColorAndIntensity(*light, *vsg_light);
                 vsg_light->name = light->mName.C_Str();
-                vsg_light->color = convert(light->mColorDiffuse);
                 vsg_light->direction = dconvert(light->mDirection);
                 lightMap[vsg_light->name] = vsg_light;
                 break;
             }
             case (aiLightSource_POINT): {
                 auto vsg_light = vsg::PointLight::create();
+                setColorAndIntensity(*light, *vsg_light);
                 vsg_light->name = light->mName.C_Str();
-                vsg_light->color = convert(light->mColorDiffuse);
                 vsg_light->position = dconvert(light->mDirection);
                 lightMap[vsg_light->name] = vsg_light;
                 break;
             }
             case (aiLightSource_SPOT): {
                 auto vsg_light = vsg::SpotLight::create();
+                setColorAndIntensity(*light, *vsg_light);
                 vsg_light->name = light->mName.C_Str();
-                vsg_light->color = convert(light->mColorDiffuse);
                 vsg_light->position = dconvert(light->mDirection);
                 vsg_light->direction = dconvert(light->mDirection);
                 vsg_light->innerAngle = light->mAngleInnerCone;
@@ -911,15 +928,15 @@ void SceneConverter::processLights()
             }
             case (aiLightSource_AMBIENT): {
                 auto vsg_light = vsg::AmbientLight::create();
+                setColorAndIntensity(*light, *vsg_light);
                 vsg_light->name = light->mName.C_Str();
-                vsg_light->color = convert(light->mColorDiffuse);
                 lightMap[vsg_light->name] = vsg_light;
                 break;
             }
             case (aiLightSource_AREA): {
                 auto vsg_light = vsg::Light::create();
+                setColorAndIntensity(*light, *vsg_light);
                 vsg_light->name = light->mName.C_Str();
-                vsg_light->color = convert(light->mColorDiffuse);
                 vsg_light->setValue("light_type", "AREA");
                 lightMap[vsg_light->name] = vsg_light;
                 break;

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.7)
 
 project(vsgXchange
-    VERSION 1.0.4
+    VERSION 1.0.5
     DESCRIPTION "VulkanSceneGraph 3rd party data integration library"
     LANGUAGES CXX C
 )
@@ -20,7 +20,7 @@ if (VULKAN_SDK)
     set(ENV{VULKAN_SDK} ${VULKAN_SDK})
 endif()
 
-set(VSG_MIN_VERSION 1.0.8)
+set(VSG_MIN_VERSION 1.0.9)
 find_package(vsg ${VSG_MIN_VERSION})
 
 vsg_setup_dir_vars()
