@@ -56,7 +56,7 @@ SubgraphStats SceneConverter::collectSubgraphStats(const aiScene* in_scene)
                 }
                 else
                 {
-                    joints[bone->mNode] = jointIndex = joints.size();
+                    joints[bone->mNode] = jointIndex = static_cast<unsigned int>(joints.size());
                 }
 
                 auto& boneStats = bones[bone];
@@ -72,7 +72,7 @@ SubgraphStats SceneConverter::collectSubgraphStats(const aiScene* in_scene)
         }
     }
 
-    stats.numBones = joints.size(); // bones.size();
+    stats.numBones = static_cast<unsigned int>(joints.size()); // bones.size();
 
     if (in_scene->mRootNode)
     {
@@ -876,7 +876,7 @@ void SceneConverter::convert(const aiMesh* mesh, vsg::ref_ptr<vsg::Node>& node)
         // useful reference for GLTF animation support
         // https://github.com/KhronosGroup/glTF/blob/main/specification/2.0/figures/gltfOverview-2.0.0d.png
 
-        // now done as part of the aiMateirial/DescriptorConfigurator setup.
+        // now done as part of the aiMaterial/DescriptorConfigurator setup.
         // config->assignDescriptor("jointMatrices", jointSampler->jointMatrices);
 
         auto jointIndices = vsg::ivec4Array::create(mesh->mNumVertices, vsg::ivec4(0, 0, 0, 0));
@@ -1097,7 +1097,7 @@ vsg::ref_ptr<vsg::Node> SceneConverter::visit(const aiScene* in_scene, vsg::ref_
     }
 
 
-    // decoate scene graph with transform if required to standardize the coordinate frame
+    // decorate scene graph with transform if required to standardize the coordinate frame
     if (auto transform = processCoordinateFrame(ext))
     {
         transform->addChild(vsg_scene);
@@ -1120,6 +1120,7 @@ vsg::ref_ptr<vsg::Node> SceneConverter::visit(const aiScene* in_scene, vsg::ref_
                     if (auto transformSampler = sampler.cast<vsg::TransformSampler>())
                     {
                         assignJointSampler = true;
+                        break;
                     }
                 }
                 if (assignJointSampler)
@@ -1314,7 +1315,7 @@ void SceneConverter::processAnimations()
         auto animation = scene->mAnimations[ai];
 
         // convert the time values the VSG uses to seconds.
-        double timeScale = 1.0/animation->mTicksPerSecond;
+        const double timeScale = 1.0/animation->mTicksPerSecond;
 
         auto vsg_animation = vsg::Animation::create();
         vsg_animation->name = animation->mName.C_Str();
@@ -1342,8 +1343,8 @@ void SceneConverter::processAnimations()
                 unsigned numUniquePositions = 1;
                 for(unsigned int si = 1; si < nodeAnim->mNumPositionKeys; ++si)
                 {
-                    auto& prev =  nodeAnim->mPositionKeys[si-1];
-                    auto& curr =  nodeAnim->mPositionKeys[si];
+                    auto& prev = nodeAnim->mPositionKeys[si-1];
+                    auto& curr = nodeAnim->mPositionKeys[si];
                     if ((std::fabs(prev.mValue.x - curr.mValue.x) > epsilion) ||
                         (std::fabs(prev.mValue.y - curr.mValue.y) > epsilion) ||
                         (std::fabs(prev.mValue.z - curr.mValue.z) > epsilion))
@@ -1356,7 +1357,7 @@ void SceneConverter::processAnimations()
                 if (numUniquePositions <= 1)
                 {
                     positions.resize(1);
-                    auto& positionKey =  nodeAnim->mPositionKeys[0];
+                    auto& positionKey = nodeAnim->mPositionKeys[0];
                     positions[0].time = positionKey.mTime * timeScale;
                     positions[0].value.set(positionKey.mValue.x, positionKey.mValue.y, positionKey.mValue.z);
                 }
@@ -1365,7 +1366,7 @@ void SceneConverter::processAnimations()
                     positions.resize(nodeAnim->mNumPositionKeys);
                     for(unsigned int pi = 0; pi < nodeAnim->mNumPositionKeys; ++pi)
                     {
-                        auto& positionKey =  nodeAnim->mPositionKeys[pi];
+                        auto& positionKey = nodeAnim->mPositionKeys[pi];
                         positions[pi].time = positionKey.mTime * timeScale;
                         positions[pi].value.set(positionKey.mValue.x, positionKey.mValue.y, positionKey.mValue.z);
                     }
@@ -1377,8 +1378,8 @@ void SceneConverter::processAnimations()
                 unsigned numUniqueRotations = 1;
                 for(unsigned int si = 1; si < nodeAnim->mNumRotationKeys; ++si)
                 {
-                    auto& prev =  nodeAnim->mRotationKeys[si-1];
-                    auto& curr =  nodeAnim->mRotationKeys[si];
+                    auto& prev = nodeAnim->mRotationKeys[si-1];
+                    auto& curr = nodeAnim->mRotationKeys[si];
                     if ((std::fabs(prev.mValue.x - curr.mValue.x) > epsilion) ||
                         (std::fabs(prev.mValue.y - curr.mValue.y) > epsilion) ||
                         (std::fabs(prev.mValue.z - curr.mValue.z) > epsilion) ||
@@ -1392,7 +1393,7 @@ void SceneConverter::processAnimations()
                 if (numUniqueRotations <= 1)
                 {
                     rotations.resize(1);
-                    auto& rotationKey =  nodeAnim->mRotationKeys[0];
+                    auto& rotationKey = nodeAnim->mRotationKeys[0];
                     rotations[0].time = rotationKey.mTime * timeScale;
                     rotations[0].value.set(rotationKey.mValue.x, rotationKey.mValue.y, rotationKey.mValue.z, rotationKey.mValue.w);
                 }
@@ -1401,7 +1402,7 @@ void SceneConverter::processAnimations()
                     rotations.resize(nodeAnim->mNumRotationKeys);
                     for(unsigned int ri = 0; ri < nodeAnim->mNumRotationKeys; ++ri)
                     {
-                        auto& rotationKey =  nodeAnim->mRotationKeys[ri];
+                        auto& rotationKey = nodeAnim->mRotationKeys[ri];
                         rotations[ri].time = rotationKey.mTime * timeScale;
                         rotations[ri].value.set(rotationKey.mValue.x, rotationKey.mValue.y, rotationKey.mValue.z, rotationKey.mValue.w);
                     }
@@ -1413,8 +1414,8 @@ void SceneConverter::processAnimations()
                 unsigned numUniqueScales = 1;
                 for(unsigned int si = 1; si < nodeAnim->mNumScalingKeys; ++si)
                 {
-                    auto& prev =  nodeAnim->mScalingKeys[si-1];
-                    auto& curr =  nodeAnim->mScalingKeys[si];
+                    auto& prev = nodeAnim->mScalingKeys[si-1];
+                    auto& curr = nodeAnim->mScalingKeys[si];
                     if ((std::fabs(prev.mValue.x - curr.mValue.x) > epsilion) ||
                         (std::fabs(prev.mValue.y - curr.mValue.y) > epsilion) ||
                         (std::fabs(prev.mValue.z - curr.mValue.z) > epsilion))
@@ -1426,7 +1427,7 @@ void SceneConverter::processAnimations()
                 if (numUniqueScales <= 1)
                 {
                     scales.resize(1);
-                    auto& scalingKey =  nodeAnim->mScalingKeys[0];
+                    auto& scalingKey = nodeAnim->mScalingKeys[0];
                     scales[0].time = scalingKey.mTime * timeScale;
                     scales[0].value.set(scalingKey.mValue.x, scalingKey.mValue.y, scalingKey.mValue.z);
                 }
@@ -1435,7 +1436,7 @@ void SceneConverter::processAnimations()
                     scales.resize(nodeAnim->mNumScalingKeys);
                     for(unsigned int si = 0; si < nodeAnim->mNumScalingKeys; ++si)
                     {
-                        auto& scalingKey =  nodeAnim->mScalingKeys[si];
+                        auto& scalingKey = nodeAnim->mScalingKeys[si];
                         scales[si].time = scalingKey.mTime * timeScale;
                         scales[si].value.set(scalingKey.mValue.x, scalingKey.mValue.y, scalingKey.mValue.z);
                     }
