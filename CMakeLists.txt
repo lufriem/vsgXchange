@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.7)
 
 project(vsgXchange
-    VERSION 1.1.0
+    VERSION 1.1.6
     DESCRIPTION "VulkanSceneGraph 3rd party data integration library"
     LANGUAGES CXX C
 )
@@ -20,7 +20,7 @@ if (VULKAN_SDK)
     set(ENV{VULKAN_SDK} ${VULKAN_SDK})
 endif()
 
-set(VSG_MIN_VERSION 1.1.2)
+set(VSG_MIN_VERSION 1.1.10)
 find_package(vsg ${VSG_MIN_VERSION})
 
 vsg_setup_dir_vars()
@@ -51,6 +51,7 @@ vsg_add_target_clang_format(
         ${VSGXCHANGE_SOURCE_DIR}/applications/*/*.cpp
     EXCLUDES
         ${VSGXCHANGE_SOURCE_DIR}/src/stbi/stb_image.h
+        ${VSGXCHANGE_SOURCE_DIR}/src/stbi/stb_image_write.h
         ${VSGXCHANGE_SOURCE_DIR}/src/dds/tinyddsloader.h
 )
 vsg_add_target_clobber()

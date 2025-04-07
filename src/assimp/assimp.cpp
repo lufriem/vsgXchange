@@ -85,8 +85,9 @@ bool assimp::getFeatures(Features& features) const
     features.optionNameTypeMap[assimp::print_assimp] = vsg::type_name<int>();
     features.optionNameTypeMap[assimp::external_textures] = vsg::type_name<bool>();
     features.optionNameTypeMap[assimp::external_texture_format] = vsg::type_name<TextureFormat>();
-    features.optionNameTypeMap[assimp::sRGBTextures] = vsg::type_name<bool>();
     features.optionNameTypeMap[assimp::culling] = vsg::type_name<bool>();
+    features.optionNameTypeMap[assimp::vertex_color_space] = vsg::type_name<vsg::CoordinateSpace>();
+    features.optionNameTypeMap[assimp::material_color_space] = vsg::type_name<vsg::CoordinateSpace>();
 
     return true;
 }
@@ -101,8 +102,9 @@ bool assimp::readOptions(vsg::Options& options, vsg::CommandLine& arguments) con
     result = arguments.readAndAssign<int>(assimp::print_assimp, &options) || result;
     result = arguments.readAndAssign<bool>(assimp::external_textures, &options) || result;
     result = arguments.readAndAssign<TextureFormat>(assimp::external_texture_format, &options) || result;
-    result = arguments.readAndAssign<bool>(assimp::sRGBTextures, &options) || result;
     result = arguments.readAndAssign<bool>(assimp::culling, &options) || result;
+    result = arguments.readAndAssign<vsg::CoordinateSpace>(assimp::vertex_color_space, &options) || result;
+    result = arguments.readAndAssign<vsg::CoordinateSpace>(assimp::material_color_space, &options) || result;
 
     return result;
 }
@@ -139,7 +141,7 @@ vsg::ref_ptr<vsg::Object> assimp::Implementation::read(const vsg::Path& filename
 
         if (auto scene = importer.ReadFile(filenameToUse.string(), flags); scene)
         {
-            auto opt = vsg::Options::create(*options);
+            auto opt = vsg::clone(options);
             opt->paths.insert(opt->paths.begin(), vsg::filePath(filenameToUse));
 
             SceneConverter converter;
@@ -159,16 +161,6 @@ vsg::ref_ptr<vsg::Object> assimp::Implementation::read(const vsg::Path& filename
             vsg::warn("Failed to load file: ", filename, '\n', importer.GetErrorString());
         }
     }
-
-#if 0
-    // Testing the stream support
-    std::ifstream file(filename, std::ios::binary);
-    auto opt = vsg::Options::create(*options);
-    opt->paths.push_back(vsg::filePath(filename));
-    opt->extensionHint = vsg::lowerCaseFileExtension(filename);
-
-    return vsg::read(file, opt);
-#endif
 
     return {};
 }
